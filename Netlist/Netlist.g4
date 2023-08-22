@@ -3,18 +3,26 @@ options {
 	tokenVocab = JavaScriptLexer;
 	superClass = JavaScriptLexerBase;
 }
+subckts: subckt+;
 
-subckt: SUBCKT_HEADER ID node+ NEWLINE parameters?;
+subckt: subcktHeader subcktBody subcktFooter;
 
-node: ID ('<' INTEGER '>')?;
+subcktHeader: SUBCKT_HEADER SPECIAL_ID node* NEWLINE;
+subcktBody: ('parameters' parameters)? components?;
+subcktFooter: 'ends' SPECIAL_ID;
+node: SPECIAL_ID;
 
-parameters: ('parameters' parameter+);
+parameters: parameter+ NEWLINE?;
 
-parameter: ID ('=' singleExpression)?;
+parameter: SPECIAL_ID ('=' singleExpression)?;
+
+components: component+;
+
+component: SPECIAL_ID '(' node*? ')' SPECIAL_ID parameters?;
 
 arguments: '(' (argument (',' argument)* ','?)? ')';
 
-argument: Ellipsis? (singleExpression | Identifier);
+argument: singleExpression | Identifier;
 
 singleExpression:
 	singleExpression arguments												# ArgumentsExpression
@@ -32,7 +40,7 @@ singleExpression:
 	| singleExpression '??' singleExpression								# CoalesceExpression
 	| singleExpression ('<<' | '>>' | '>>>') singleExpression				# BitShiftExpression
 	| singleExpression ('<' | '>' | '<=' | '>=') singleExpression			# RelationalExpression
-	| singleExpression ('==' | '!=' | '===' | '!==') singleExpression		# EqualityExpression
+	| singleExpression ('==' | '!=') singleExpression						# EqualityExpression
 	| singleExpression '&' singleExpression									# BitAndExpression
 	| singleExpression '^' singleExpression									# BitXOrExpression
 	| singleExpression '|' singleExpression									# BitOrExpression
@@ -43,7 +51,7 @@ singleExpression:
 	| <assoc = right> singleExpression assignmentOperator singleExpression	#
 		AssignmentOperatorExpression
 	| number					# LiteralExpression
-	| identifier				# IdentifierExpression
+	| SPECIAL_ID				# IdentifierExpression
 	| '(' singleExpression ')'	# ParenthesizedExpression;
 
 assignmentOperator:
@@ -64,7 +72,6 @@ number: pureNumber UNIT?;
 
 pureNumber: INTEGER | FLOAT | SCIENTIFIC;
 
-identifier: ID;
 SUBCKT_HEADER: 'subckt';
 
 SCIENTIFIC: (INTEGER | FLOAT) 'e' '-'? INTEGER;
@@ -76,7 +83,9 @@ FLOAT:
 INTEGER: [0-9]+;
 
 UNIT: [npumkfM];
+SPECIAL_ID: (ID ('<' [0-9]+ '>')?) | (ID ('\\-' ID)+);
 ID: [a-zA-Z_][a-zA-Z0-9_]*;
+
 NEWLINE: '\r'? '\n';
 COMMENT: '//' ~('\n' | '\r')* ('\n' | '\r' ('\n')?)? -> skip;
 
